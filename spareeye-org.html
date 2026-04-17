@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPAREEYE — Company Structure</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#f4f3ef;
+    --surface:#ffffff;
+    --surface2:#f8f7f4;
+    --border:#e2e0d8;
+    --border2:#d0cec4;
+    --text:#1a1916;
+    --text2:#6b6960;
+    --text3:#9c9a90;
+    --accent:#1a1916;
+    --blue:#185FA5;
+    --green:#3B6D11;
+    --amber:#854F0B;
+    --pink:#993556;
+    --teal:#0F6E56;
+    --radius:10px;
+    --shadow:0 1px 3px rgba(0,0,0,0.06),0 4px 12px rgba(0,0,0,0.04);
+  }
+  html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+
+  /* Toolbar */
+  #toolbar{
+    position:fixed;top:0;left:0;right:0;height:52px;
+    background:rgba(244,243,239,0.92);backdrop-filter:blur(12px);
+    border-bottom:0.5px solid var(--border);
+    display:flex;align-items:center;gap:10px;padding:0 20px;z-index:200;
+  }
+  #toolbar .logo{font-size:13px;font-weight:600;letter-spacing:0.05em;color:var(--text);margin-right:8px}
+  #toolbar .sep{width:1px;height:20px;background:var(--border2);margin:0 4px}
+  #toolbar button{
+    font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;
+    padding:5px 12px;border-radius:6px;border:0.5px solid var(--border2);
+    background:var(--surface);color:var(--text2);cursor:pointer;
+    transition:all 0.15s;white-space:nowrap;
+  }
+  #toolbar button:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
+  #toolbar button.primary{background:var(--text);color:#fff;border-color:var(--text)}
+  #toolbar button.primary:hover{background:#333}
+  #zoom-display{font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;min-width:42px;text-align:center}
+  #toolbar .spacer{flex:1}
+
+  /* Legend */
+  #legend{
+    position:fixed;bottom:20px;left:20px;z-index:200;
+    background:var(--surface);border:0.5px solid var(--border);
+    border-radius:var(--radius);padding:10px 14px;
+    box-shadow:var(--shadow);
+  }
+  #legend .leg-title{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+  .leg-item{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:11px;color:var(--text2)}
+  .leg-item:last-child{margin-bottom:0}
+  .leg-line{width:32px;height:1px;flex-shrink:0}
+
+  /* Canvas */
+  #viewport{
+    position:fixed;top:52px;left:0;right:0;bottom:0;overflow:hidden;cursor:grab;
+  }
+  #viewport:active{cursor:grabbing}
+  #canvas{
+    position:absolute;transform-origin:0 0;
+    width:3000px;height:2200px;
+  }
+  svg#svg-lines{
+    position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;
+  }
+
+  /* Entity nodes */
+  .entity{
+    position:absolute;width:210px;
+    background:var(--surface);border:0.5px solid var(--border);
+    border-radius:var(--radius);box-shadow:var(--shadow);
+    transition:box-shadow 0.15s,border-color 0.15s;
+    overflow:hidden;
+  }
+  .entity:hover{box-shadow:0 2px 8px rgba(0,0,0,0.1),0 8px 24px rgba(0,0,0,0.06);border-color:var(--border2)}
+  .entity.root{width:230px;border-color:var(--text);border-width:1px}
+
+  .entity-header{
+    padding:10px 12px 9px;
+    display:flex;align-items:flex-start;justify-content:space-between;
+    border-bottom:0.5px solid var(--border);
+  }
+  .entity-type-label{
+    font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;
+    margin-bottom:4px;
+  }
+  .entity-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.3}
+  .entity-menu-btn{
+    width:20px;height:20px;border:none;background:none;cursor:pointer;
+    color:var(--text3);font-size:16px;line-height:1;flex-shrink:0;
+    border-radius:4px;display:flex;align-items:center;justify-content:center;
+    transition:background 0.1s;
+  }
+  .entity-menu-btn:hover{background:var(--surface2);color:var(--text)}
+
+  .entity-section{padding:8px 12px;border-bottom:0.5px solid var(--border)}
+  .entity-section:last-child{border-bottom:none}
+  .section-label{font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:5px}
+
+  .person-row{display:flex;align-items:center;gap:7px;padding:2px 0}
+  .avatar{
+    width:22px;height:22px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:8px;font-weight:600;flex-shrink:0;letter-spacing:0;
+  }
+  .person-name{font-size:11px;color:var(--text);font-weight:500}
+  .person-role-tag{font-size:10px;color:var(--text3)}
+
+  .role-item{
+    font-size:10px;color:var(--text2);line-height:1.5;
+    padding-left:8px;position:relative;
+  }
+  .role-item::before{content:'·';position:absolute;left:0;color:var(--text3)}
+
+  .add-row{
+    display:flex;align-items:center;gap:5px;padding:6px 12px;
+    font-size:11px;color:var(--text3);cursor:pointer;
+    border-top:0.5px solid var(--border);
+    transition:background 0.1s,color 0.1s;
+    border:none;background:none;width:100%;text-align:left;
+    font-family:'DM Sans',sans-serif;
+  }
+  .add-row:hover{background:var(--surface2);color:var(--text2)}
+  .add-row .plus{font-size:13px;line-height:1}
+
+  .collapse-btn{
+    font-size:10px;color:var(--text3);background:none;border:none;
+    cursor:pointer;padding:4px 12px;width:100%;text-align:center;
+    font-family:'DM Sans',sans-serif;border-top:0.5px solid var(--border);
+    transition:background 0.1s;
+  }
+  .collapse-btn:hover{background:var(--surface2);color:var(--text2)}
+
+  /* Context menu */
+  #ctx-menu{
+    position:fixed;z-index:500;background:var(--surface);
+    border:0.5px solid var(--border);border-radius:8px;
+    box-shadow:0 4px 20px rgba(0,0,0,0.12);
+    padding:4px;min-width:170px;display:none;
+  }
+  .ctx-item{
+    padding:7px 12px;font-size:12px;color:var(--text2);
+    cursor:pointer;border-radius:5px;transition:background 0.1s;
+  }
+  .ctx-item:hover{background:var(--surface2);color:var(--text)}
+  .ctx-item.danger{color:#A32D2D}
+  .ctx-item.danger:hover{background:#FCEBEB}
+  .ctx-sep{height:0.5px;background:var(--border);margin:3px 0}
+
+  /* Modal */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);
+    z-index:600;align-items:center;justify-content:center;
+  }
+  .modal-overlay.open{display:flex}
+  .modal{
+    background:var(--surface);border-radius:12px;border:0.5px solid var(--border);
+    box-shadow:0 8px 40px rgba(0,0,0,0.15);padding:22px;width:360px;max-width:94vw;
+  }
+  .modal h3{font-size:14px;font-weight:600;margin-bottom:16px;color:var(--text)}
+  .modal label{font-size:11px;font-weight:500;color:var(--text2);display:block;margin-bottom:4px;margin-top:12px;text-transform:uppercase;letter-spacing:0.05em}
+  .modal label:first-of-type{margin-top:0}
+  .modal input,.modal select,.modal textarea{
+    width:100%;font-size:13px;padding:8px 10px;
+    border:0.5px solid var(--border2);border-radius:6px;
+    background:var(--surface2);color:var(--text);
+    font-family:'DM Sans',sans-serif;
+    transition:border-color 0.15s;
+  }
+  .modal input:focus,.modal select:focus,.modal textarea:focus{
+    outline:none;border-color:#378ADD;
+  }
+  .modal textarea{resize:vertical;min-height:70px}
+  .modal-btns{display:flex;gap:8px;margin-top:18px;justify-content:flex-end}
+  .modal-btns button{
+    font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;
+    padding:7px 16px;border-radius:6px;border:0.5px solid var(--border2);
+    background:var(--surface);color:var(--text2);cursor:pointer;transition:all 0.15s;
+  }
+  .modal-btns button:hover{background:var(--surface2)}
+  .modal-btns button.confirm{background:var(--text);color:#fff;border-color:var(--text)}
+  .modal-btns button.confirm:hover{background:#333}
+
+  /* rel type badge colors */
+  .rel-parent{color:var(--blue)}
+  .rel-dba{color:var(--green)}
+  .rel-sister{color:var(--amber)}
+  .rel-vendor{color:var(--pink)}
+  .rel-subsidiary{color:var(--teal)}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <span class="logo">SPAREEYE</span>
+  <span class="sep"></span>
+  <span style="font-size:12px;color:var(--text3);font-weight:500">Company Structure</span>
+  <span class="sep"></span>
+  <button onclick="addEntity()">+ Add Entity</button>
+  <button onclick="openRelModal()">+ Add Relationship</button>
+  <span class="spacer"></span>
+  <button onclick="zoomOut()">−</button>
+  <span id="zoom-display">100%</span>
+  <button onclick="zoomIn()">+</button>
+  <button onclick="fitView()" style="margin-left:4px">Fit</button>
+  <button onclick="collapseAll()">Collapse All</button>
+  <button class="primary" onclick="saveState()">Save</button>
+</div>
+
+<div id="viewport">
+  <div id="canvas">
+    <svg id="svg-lines"></svg>
+  </div>
+</div>
+
+<!-- Legend -->
+<div id="legend">
+  <div class="leg-title">Relationship types</div>
+  <div class="leg-item"><svg width="32" height="10"><line x1="0" y1="5" x2="32" y2="5" stroke="#185FA5" stroke-width="2"/><polygon points="27,2 32,5 27,8" fill="#185FA5"/></svg>Parent company</div>
+  <div class="leg-item"><svg width="32" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#3B6D11" stroke-width="1.5" stroke-dasharray="6 3"/><polygon points="27,2 32,5 27,8" fill="#3B6D11"/></svg>DBA</div>
+  <div class="leg-item"><svg width="32" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#854F0B" stroke-width="1.5" stroke-dasharray="2 4"/><polygon points="27,2 32,5 27,8" fill="#854F0B"/></svg>Sister company</div>
+  <div class="leg-item"><svg width="32" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#993556" stroke-width="1.5"/><polygon points="27,2 32,5 27,8" fill="#993556"/></svg>Vendor</div>
+  <div class="leg-item"><svg width="32" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#0F6E56" stroke-width="1.5" stroke-dasharray="8 3 2 3"/><polygon points="27,2 32,5 27,8" fill="#0F6E56"/></svg>Subsidiary</div>
+</div>
+
+<!-- Context menu -->
+<div id="ctx-menu">
+  <div class="ctx-item" onclick="ctxAddPerson()">+ Add person</div>
+  <div class="ctx-item" onclick="ctxAddRole()">+ Add role</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="ctxEditEntity()">Edit entity</div>
+  <div class="ctx-item" onclick="ctxAddRelationship()">Add relationship from here</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="ctxDeleteEntity()">Delete entity</div>
+</div>
+
+<!-- Add/Edit Entity Modal -->
+<div class="modal-overlay" id="entity-modal">
+  <div class="modal">
+    <h3 id="entity-modal-title">Add entity</h3>
+    <label>Entity name</label>
+    <input id="em-name" type="text" placeholder="e.g. SPAREEYE CORP">
+    <label>Type</label>
+    <select id="em-type">
+      <option value="Corporation">Corporation</option>
+      <option value="LLC">LLC</option>
+      <option value="DBA">DBA</option>
+      <option value="Partnership">Partnership</option>
+      <option value="Department">Department</option>
+      <option value="Vendor">Vendor</option>
+      <option value="Other">Other</option>
+    </select>
+    <label>State / Jurisdiction</label>
+    <input id="em-state" type="text" placeholder="e.g. New York">
+    <label>EIN (optional)</label>
+    <input id="em-ein" type="text" placeholder="XX-XXXXXXX">
+    <div class="modal-btns">
+      <button onclick="closeEntityModal()">Cancel</button>
+      <button class="confirm" onclick="saveEntityModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Person Modal -->
+<div class="modal-overlay" id="person-modal">
+  <div class="modal">
+    <h3>Add person</h3>
+    <label>Full name</label>
+    <input id="pm-name" type="text" placeholder="e.g. Yaron Weinstein">
+    <label>Title / Role</label>
+    <input id="pm-role" type="text" placeholder="e.g. CEO / Owner">
+    <label>Type</label>
+    <select id="pm-type">
+      <option value="owner">Owner</option>
+      <option value="employee">Employee</option>
+      <option value="contractor">Contractor</option>
+      <option value="officer">Officer</option>
+    </select>
+    <div class="modal-btns">
+      <button onclick="closePersonModal()">Cancel</button>
+      <button class="confirm" onclick="savePersonModal()">Add person</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Role Modal -->
+<div class="modal-overlay" id="role-modal">
+  <div class="modal">
+    <h3>Add role / responsibility</h3>
+    <label>Role description</label>
+    <textarea id="rm-role" placeholder="e.g. Chief Operating Officer&#10;Manages day-to-day operations"></textarea>
+    <div class="modal-btns">
+      <button onclick="closeRoleModal()">Cancel</button>
+      <button class="confirm" onclick="saveRoleModal()">Add role</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Relationship Modal -->
+<div class="modal-overlay" id="rel-modal">
+  <div class="modal">
+    <h3>Add relationship</h3>
+    <label>From entity</label>
+    <select id="rel-from"></select>
+    <label>Relationship type</label>
+    <select id="rel-type">
+      <option value="parent">Parent company</option>
+      <option value="dba">DBA</option>
+      <option value="sister">Sister company</option>
+      <option value="vendor">Vendor</option>
+      <option value="subsidiary">Subsidiary</option>
+    </select>
+    <label>To entity</label>
+    <select id="rel-to"></select>
+    <div class="modal-btns">
+      <button onclick="closeRelModal()">Cancel</button>
+      <button class="confirm" onclick="saveRelModal()">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────
+let entities = [];
+let relationships = [];
+let nextId = 1;
+let zoom = 1;
+let panX = 0, panY = 0;
+let isPanning = false, panStartX = 0, panStartY = 0, panStartOffX = 0, panStartOffY = 0;
+let ctxTargetId = null;
+let editingEntityId = null;
+let addPersonForId = null;
+let addRoleForId = null;
+
+const AVATAR_COLORS = [
+  ['#E6F1FB','#185FA5'],['#EAF3DE','#3B6D11'],['#FAEEDA','#854F0B'],
+  ['#FBEAF0','#993556'],['#E1F5EE','#0F6E56'],['#EEEDFE','#534AB7']
+];
+function avatarColor(name){
+  let h=0; for(let c of name) h=(h*31+c.charCodeAt(0))%AVATAR_COLORS.length;
+  return AVATAR_COLORS[Math.abs(h)%AVATAR_COLORS.length];
+}
+function initials(name){
+  return name.trim().split(/\s+/).map(w=>w[0]||'').join('').toUpperCase().slice(0,2);
+}
+
+// ─── Seed data ──────────────────────────────────────────
+function seed(){
+  const se = addEnt('SPAREEYE — Owners','Corporation','New York','',1300,80);
+  const sl = addEnt('Shlorny Lavinger','Owner','New York','',900,300);
+  const yw = addEnt('Yaron Weinstein','Owner','New York','',1700,300);
+
+  addPersonToEnt(se,'Shlorny Lavinger','Managing Member','owner');
+  addRoleToEnt(se,'Managing Member of SPAREEYE');
+
+  addPersonToEnt(sl,'Shlorny Lavinger','President of the Board / CFO / Business Development Manager','owner');
+  addPersonToEnt(yw,'Yaron Weinstein','Vice President / Chief Operating Officer / Chief Financial Officer','owner');
+
+  const mkt = addEnt('Marketing / Sales','Department','',''  ,600,560);
+  const biz = addEnt('Business Development','Department','',''  ,850,560);
+  const hr  = addEnt('Human Resources','Department','',''     ,1100,560);
+  const pm  = addEnt('Projects Management','Department','','' ,1350,560);
+  const fin = addEnt('Finance','Department','',''             ,1600,560);
+  const adm = addEnt('Company Administration','Department','','',1850,560);
+  const ctr = addEnt('Contracts Management','Department','','',2100,560);
+
+  addPersonToEnt(mkt,'Shlorny Lavinger','Department Head','owner');
+  addRoleToEnt(mkt,'Define market clients suitable for the company');
+  addRoleToEnt(mkt,'Initiate marketing plan');
+  addRoleToEnt(mkt,'Develop a marketing plan');
+
+  addPersonToEnt(biz,'Shlorny Lavinger','Department Head','owner');
+  addRoleToEnt(biz,'Explore new business');
+  addRoleToEnt(biz,'Recruit new customers');
+  addRoleToEnt(biz,'Negotiate & approve new contracts');
+
+  addPersonToEnt(hr,'Shlorny Lavinger','Department Head','owner');
+  addRoleToEnt(hr,'Define the overall workforce');
+  addRoleToEnt(hr,'Define & Determine the conditions');
+  addRoleToEnt(hr,'Bring the needs and conditions to the benefit of people');
+
+  addPersonToEnt(pm,'Yaron Weinstein','Department Head','owner');
+  addRoleToEnt(pm,'Cybersecurity Service Oversight');
+  addRoleToEnt(pm,'IT Service Oversight');
+  addRoleToEnt(pm,'Compliance Service Oversight');
+
+  addPersonToEnt(fin,'Yaron Weinstein','Department Head','owner');
+  addRoleToEnt(fin,'Chief Financial Officer');
+
+  addPersonToEnt(adm,'Saul Holder','Department Head','officer');
+  addRoleToEnt(adm,'Quality Assurance');
+  addRoleToEnt(adm,'Quality Control');
+  addRoleToEnt(adm,'Office Administration');
+
+  addPersonToEnt(ctr,'Yaron Weinstein','Department Head','owner');
+  addRoleToEnt(ctr,'Finalize contract parameters / mail');
+  addRoleToEnt(ctr,'Initiate MSA');
+  addRoleToEnt(ctr,'Tracking & STAT registration');
+  addRoleToEnt(ctr,'Approve contract as ready');
+
+  // Sub-departments
+  const mkts = addEnt('Marketing & Sales Manager','Department','',''  ,600,840);
+  const cyber= addEnt('Cybersecurity Engagements','Department','','',1050,840);
+  const soft = addEnt('Software Engagements','Department','','',1300,840);
+  const comp = addEnt('Compliance Engagements','Department','','',1550,840);
+  const finm = addEnt('Finance Manager','Department','','',1800,840);
+  const bsm  = addEnt('Budget & Schedule Monitoring','Department','','',2050,840);
+
+  addPersonToEnt(mkts,'David','Sales Manager','employee');
+  addRoleToEnt(mkts,'Search for marketing posts');
+  addRoleToEnt(mkts,'Prepare marketing plan');
+  addRoleToEnt(mkts,'Prepare marketing budget');
+
+  addPersonToEnt(cyber,'SDVCRA','Lead Engineer','employee');
+  addRoleToEnt(cyber,'Conduct cybersecurity scans');
+  addRoleToEnt(cyber,'Conduct lightning tests');
+  addRoleToEnt(cyber,'Ensure compliance with cybersecurity policies');
+
+  addPersonToEnt(soft,'DAVID','Lead Developer','employee');
+  addRoleToEnt(soft,'Manage software development projects');
+  addRoleToEnt(soft,'Coordinate with clients on software requirements');
+  addRoleToEnt(soft,'Ensure software projects meet deadlines and quality standards');
+
+  addPersonToEnt(comp,'Maya Walterland','Compliance Lead','employee');
+  addRoleToEnt(comp,'Ensure compliance with applicable regulations');
+  addRoleToEnt(comp,'Monitor and update company policies and procedures');
+  addRoleToEnt(comp,'Perform audit and certification processes');
+
+  addPersonToEnt(finm,'Yaron Weinstein','Finance Manager','owner');
+  addRoleToEnt(finm,'Manage billing and invoicing');
+  addRoleToEnt(finm,'Oversee accounts receivable and payroll');
+  addRoleToEnt(finm,'Track and reconcile bills');
+  addRoleToEnt(finm,'Generate financial reports');
+
+  addPersonToEnt(bsm,'Saul Holder','Budget Manager','officer');
+  addRoleToEnt(bsm,'Create the yearly budget');
+  addRoleToEnt(bsm,'Break the budget to items and offices');
+  addRoleToEnt(bsm,'Update and monitoring the budget');
+  addRoleToEnt(bsm,'Create the project schedule');
+  addRoleToEnt(bsm,'Update & monitoring the projects schedule');
+  addRoleToEnt(bsm,'Report quarterly runrate schedule to management');
+
+  // Relationships
+  addRel(se, sl, 'parent');
+  addRel(se, yw, 'parent');
+  addRel(sl, mkt,'parent'); addRel(sl, biz,'parent'); addRel(sl, hr,'parent');
+  addRel(yw, pm,'parent');  addRel(yw, fin,'parent'); addRel(yw, adm,'parent'); addRel(yw, ctr,'parent');
+  addRel(mkt, mkts,'parent');
+  addRel(pm, cyber,'parent'); addRel(pm, soft,'parent'); addRel(pm, comp,'parent');
+  addRel(fin, finm,'parent'); addRel(fin, bsm,'parent');
+}
+
+function addEnt(name,type,state,ein,x,y){
+  const id = nextId++;
+  entities.push({id,name,type,state,ein,x,y,collapsed:false,people:[],roles:[]});
+  return id;
+}
+function addPersonToEnt(id,name,role,ptype){
+  const e = entities.find(e=>e.id===id);
+  if(e) e.people.push({name,role,ptype,pid:nextId++});
+}
+function addRoleToEnt(id,role){
+  const e = entities.find(e=>e.id===id);
+  if(e) e.roles.push({role,rid:nextId++});
+}
+function addRel(from,to,type){
+  relationships.push({from,to,type,rid:nextId++});
+}
+
+// ─── Render ─────────────────────────────────────────────
+const REL_STYLES = {
+  parent:    {stroke:'#185FA5', sw:2,   dash:''},
+  dba:       {stroke:'#3B6D11', sw:1.5, dash:'6,3'},
+  sister:    {stroke:'#854F0B', sw:1.5, dash:'2,4'},
+  vendor:    {stroke:'#993556', sw:1.5, dash:''},
+  subsidiary:{stroke:'#0F6E56', sw:1.5, dash:'8,3,2,3'},
+};
+const TYPE_COLORS = {
+  parent:'#185FA5', dba:'#3B6D11', sister:'#854F0B',
+  vendor:'#993556', subsidiary:'#0F6E56'
+};
+const ENTITY_TYPE_COLORS = {
+  Corporation:'#185FA5', LLC:'#3B6D11', DBA:'#854F0B',
+  Partnership:'#993556', Department:'#5F5E5A', Vendor:'#993556', Owner:'#534AB7', Other:'#888780'
+};
+
+function render(){
+  const canvas = document.getElementById('canvas');
+  // Remove old entity nodes
+  canvas.querySelectorAll('.entity').forEach(el=>el.remove());
+
+  entities.forEach(e=>{
+    const div = document.createElement('div');
+    div.className = 'entity' + (e.id===entities[0]?.id?' root':'');
+    div.id = 'entity-'+e.id;
+    div.style.left = e.x+'px';
+    div.style.top = e.y+'px';
+    if(e.id===entities[0]?.id) div.style.width='230px';
+
+    const tc = ENTITY_TYPE_COLORS[e.type]||'#888780';
+    let html = `
+      <div class="entity-header">
+        <div>
+          <div class="entity-type-label" style="color:${tc}">${e.type.toUpperCase()}</div>
+          <div class="entity-name">${e.name}</div>
+          ${e.state?`<div style="font-size:10px;color:var(--text3);margin-top:2px">${e.state}${e.ein?' · EIN: '+e.ein:''}</div>`:''}
+        </div>
+        <button class="entity-menu-btn" onclick="openCtxMenu(event,${e.id})">⋯</button>
+      </div>
+    `;
+
+    if(!e.collapsed){
+      if(e.people.length){
+        html += `<div class="entity-section"><div class="section-label">People</div>`;
+        e.people.forEach(p=>{
+          const [bg,fg]=avatarColor(p.name);
+          html+=`<div class="person-row">
+            <div class="avatar" style="background:${bg};color:${fg}">${initials(p.name)}</div>
+            <div><div class="person-name">${p.name}</div><div class="person-role-tag">${p.role}</div></div>
+          </div>`;
+        });
+        html+=`</div>`;
+      }
+      if(e.roles.length){
+        html+=`<div class="entity-section"><div class="section-label">Roles</div>`;
+        e.roles.forEach(r=>{
+          html+=`<div class="role-item">${r.role}</div>`;
+        });
+        html+=`</div>`;
+      }
+      html+=`<button class="add-row" onclick="openPersonModal(${e.id})"><span class="plus">+</span> Add person</button>`;
+      html+=`<button class="add-row" onclick="openRoleModal(${e.id})"><span class="plus">+</span> Add role</button>`;
+    }
+
+    html+=`<button class="collapse-btn" onclick="toggleCollapse(${e.id})">${e.collapsed?'▾ Expand':'▴ Collapse'}</button>`;
+
+    div.innerHTML = html;
+
+    // Drag
+    div.addEventListener('mousedown', e2=>{
+      if(e2.target.tagName==='BUTTON'||e2.target.tagName==='INPUT'||e2.target.tagName==='SELECT') return;
+      e2.stopPropagation();
+      const startX=e2.clientX, startY=e2.clientY;
+      const origX=e.x, origY=e.y;
+      function onMove(ev){
+        e.x = origX + (ev.clientX-startX)/zoom;
+        e.y = origY + (ev.clientY-startY)/zoom;
+        div.style.left=e.x+'px';
+        div.style.top=e.y+'px';
+        drawLines();
+      }
+      function onUp(){
+        document.removeEventListener('mousemove',onMove);
+        document.removeEventListener('mouseup',onUp);
+      }
+      document.addEventListener('mousemove',onMove);
+      document.addEventListener('mouseup',onUp);
+    });
+
+    canvas.appendChild(div);
+  });
+
+  drawLines();
+}
+
+function drawLines(){
+  const svg = document.getElementById('svg-lines');
+  svg.innerHTML = `<defs>
+    ${Object.entries(REL_STYLES).map(([k,v])=>`
+      <marker id="arr-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M2 1L9 5L2 9" fill="none" stroke="${v.stroke}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    `).join('')}
+  </defs>`;
+
+  relationships.forEach(rel=>{
+    const from = entities.find(e=>e.id===rel.from);
+    const to   = entities.find(e=>e.id===rel.to);
+    if(!from||!to) return;
+
+    const fw = getEntityWidth(from), fh = getEntityHeight(from);
+    const tw = getEntityWidth(to),   th = getEntityHeight(to);
+
+    const fx = from.x + fw/2, fy = from.y + fh;
+    const tx = to.x   + tw/2, ty = to.y;
+
+    const st = REL_STYLES[rel.type]||REL_STYLES.parent;
+
+    // Elbow path
+    const my = (fy+ty)/2;
+    let d;
+    if(Math.abs(fx-tx)<10){
+      d=`M${fx},${fy} L${tx},${ty}`;
+    } else {
+      d=`M${fx},${fy} L${fx},${my} L${tx},${my} L${tx},${ty}`;
+    }
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',d);
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke',st.stroke);
+    path.setAttribute('stroke-width',st.sw);
+    if(st.dash) path.setAttribute('stroke-dasharray',st.dash);
+    path.setAttribute('marker-end',`url(#arr-${rel.type})`);
+    path.setAttribute('stroke-linecap','round');
+    svg.appendChild(path);
+  });
+}
+
+function getEntityWidth(e){ return (e.id===entities[0]?.id)?230:210; }
+function getEntityHeight(e){
+  const el = document.getElementById('entity-'+e.id);
+  return el ? el.offsetHeight : 80;
+}
+
+// ─── Controls ─────────────────────────────────────────────
+function toggleCollapse(id){
+  const e=entities.find(e=>e.id===id);
+  if(e){ e.collapsed=!e.collapsed; render(); }
+}
+function collapseAll(){
+  entities.forEach(e=>e.collapsed=true); render();
+}
+
+// ─── Zoom/Pan ─────────────────────────────────────────────
+const vp = document.getElementById('viewport');
+const cv = document.getElementById('canvas');
+
+function applyTransform(){
+  cv.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;
+  document.getElementById('zoom-display').textContent=Math.round(zoom*100)+'%';
+}
+function zoomIn(){ zoom=Math.min(zoom*1.2,3); applyTransform(); }
+function zoomOut(){ zoom=Math.max(zoom/1.2,0.2); applyTransform(); }
+function fitView(){
+  if(!entities.length) return;
+  const vw=vp.offsetWidth, vh=vp.offsetHeight;
+  const xs=entities.map(e=>e.x), ys=entities.map(e=>e.y);
+  const minX=Math.min(...xs)-40, minY=Math.min(...ys)-40;
+  const maxX=Math.max(...xs)+260, maxY=Math.max(...ys)+200;
+  const cw=maxX-minX, ch=maxY-minY;
+  zoom=Math.min(vw/cw, vh/ch, 1.5)*0.9;
+  panX=-minX*zoom+(vw-cw*zoom)/2;
+  panY=-minY*zoom+(vh-ch*zoom)/2;
+  applyTransform();
+}
+
+vp.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const rect=vp.getBoundingClientRect();
+  const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+  const oldZ=zoom;
+  zoom=e.deltaY<0?Math.min(zoom*1.1,3):Math.max(zoom/1.1,0.2);
+  panX=mx-(mx-panX)*(zoom/oldZ);
+  panY=my-(my-panY)*(zoom/oldZ);
+  applyTransform();
+},{passive:false});
+
+vp.addEventListener('mousedown',e=>{
+  if(e.target===vp||e.target===cv||e.target.id==='svg-lines'){
+    isPanning=true;
+    panStartX=e.clientX; panStartY=e.clientY;
+    panStartOffX=panX; panStartOffY=panY;
+  }
+});
+document.addEventListener('mousemove',e=>{
+  if(isPanning){
+    panX=panStartOffX+(e.clientX-panStartX);
+    panY=panStartOffY+(e.clientY-panStartY);
+    applyTransform();
+  }
+});
+document.addEventListener('mouseup',()=>isPanning=false);
+
+// ─── Context menu ─────────────────────────────────────────
+function openCtxMenu(e,id){
+  e.stopPropagation();
+  ctxTargetId=id;
+  const m=document.getElementById('ctx-menu');
+  m.style.display='block';
+  m.style.left=e.clientX+'px';
+  m.style.top=e.clientY+'px';
+}
+document.addEventListener('click',()=>{document.getElementById('ctx-menu').style.display='none';});
+function ctxAddPerson(){ closeCtx(); openPersonModal(ctxTargetId); }
+function ctxAddRole(){ closeCtx(); openRoleModal(ctxTargetId); }
+function ctxEditEntity(){ closeCtx(); openEditEntityModal(ctxTargetId); }
+function ctxAddRelationship(){ closeCtx(); openRelModal(ctxTargetId); }
+function ctxDeleteEntity(){
+  closeCtx();
+  if(!confirm('Delete this entity?')) return;
+  entities=entities.filter(e=>e.id!==ctxTargetId);
+  relationships=relationships.filter(r=>r.from!==ctxTargetId&&r.to!==ctxTargetId);
+  render();
+}
+function closeCtx(){ document.getElementById('ctx-menu').style.display='none'; }
+
+// ─── Add Entity ───────────────────────────────────────────
+function addEntity(){
+  editingEntityId=null;
+  document.getElementById('entity-modal-title').textContent='Add entity';
+  ['em-name','em-state','em-ein'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('em-type').value='Corporation';
+  document.getElementById('entity-modal').classList.add('open');
+}
+function openEditEntityModal(id){
+  const e=entities.find(e=>e.id===id);
+  if(!e) return;
+  editingEntityId=id;
+  document.getElementById('entity-modal-title').textContent='Edit entity';
+  document.getElementById('em-name').value=e.name;
+  document.getElementById('em-type').value=e.type;
+  document.getElementById('em-state').value=e.state||'';
+  document.getElementById('em-ein').value=e.ein||'';
+  document.getElementById('entity-modal').classList.add('open');
+}
+function closeEntityModal(){ document.getElementById('entity-modal').classList.remove('open'); }
+function saveEntityModal(){
+  const name=document.getElementById('em-name').value.trim();
+  if(!name) return;
+  if(editingEntityId){
+    const e=entities.find(e=>e.id===editingEntityId);
+    if(e){
+      e.name=name; e.type=document.getElementById('em-type').value;
+      e.state=document.getElementById('em-state').value;
+      e.ein=document.getElementById('em-ein').value;
+    }
+  } else {
+    addEnt(name,document.getElementById('em-type').value,
+      document.getElementById('em-state').value,
+      document.getElementById('em-ein').value,
+      200+Math.random()*400, 200+Math.random()*300);
+  }
+  closeEntityModal(); render();
+}
+
+// ─── Person Modal ─────────────────────────────────────────
+function openPersonModal(id){ addPersonForId=id; document.getElementById('pm-name').value=''; document.getElementById('pm-role').value=''; document.getElementById('person-modal').classList.add('open'); }
+function closePersonModal(){ document.getElementById('person-modal').classList.remove('open'); }
+function savePersonModal(){
+  const name=document.getElementById('pm-name').value.trim();
+  const role=document.getElementById('pm-role').value.trim();
+  if(!name) return;
+  addPersonToEnt(addPersonForId,name,role,document.getElementById('pm-type').value);
+  closePersonModal(); render();
+}
+
+// ─── Role Modal ───────────────────────────────────────────
+function openRoleModal(id){ addRoleForId=id; document.getElementById('rm-role').value=''; document.getElementById('role-modal').classList.add('open'); }
+function closeRoleModal(){ document.getElementById('role-modal').classList.remove('open'); }
+function saveRoleModal(){
+  const role=document.getElementById('rm-role').value.trim();
+  if(!role) return;
+  addRoleToEnt(addRoleForId,role);
+  closeRoleModal(); render();
+}
+
+// ─── Relationship Modal ────────────────────────────────────
+function openRelModal(fromId){
+  const fs=document.getElementById('rel-from');
+  const ts=document.getElementById('rel-to');
+  fs.innerHTML=''; ts.innerHTML='';
+  entities.forEach(e=>{
+    fs.innerHTML+=`<option value="${e.id}">${e.name}</option>`;
+    ts.innerHTML+=`<option value="${e.id}">${e.name}</option>`;
+  });
+  if(fromId) fs.value=fromId;
+  document.getElementById('rel-modal').classList.add('open');
+}
+function closeRelModal(){ document.getElementById('rel-modal').classList.remove('open'); }
+function saveRelModal(){
+  const from=parseInt(document.getElementById('rel-from').value);
+  const to=parseInt(document.getElementById('rel-to').value);
+  const type=document.getElementById('rel-type').value;
+  if(from===to) return alert('Cannot relate an entity to itself');
+  addRel(from,to,type);
+  closeRelModal(); render();
+}
+
+// ─── Save/Load ────────────────────────────────────────────
+function saveState(){
+  localStorage.setItem('spareeye-org',JSON.stringify({entities,relationships,nextId}));
+  const btn=document.querySelector('#toolbar .primary');
+  btn.textContent='Saved ✓';
+  setTimeout(()=>btn.textContent='Save',1500);
+}
+function loadState(){
+  const s=localStorage.getItem('spareeye-org');
+  if(s){
+    const d=JSON.parse(s);
+    entities=d.entities; relationships=d.relationships; nextId=d.nextId;
+  } else {
+    seed();
+  }
+}
+
+// ─── Init ─────────────────────────────────────────────────
+loadState();
+render();
+setTimeout(()=>fitView(), 100);
+</script>
+</body>
+</html>
