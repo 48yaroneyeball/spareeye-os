@@ -107,7 +107,9 @@
   .entity-section:last-child{border-bottom:none}
   .section-label{font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:5px}
 
-  .person-row{display:flex;align-items:center;gap:7px;padding:2px 0}
+  .person-row{display:flex;align-items:center;gap:7px;padding:3px 4px;border-radius:6px;transition:background 0.1s;position:relative}
+  .person-row:hover{background:var(--surface2)}
+  .person-row:hover .row-actions{opacity:1}
   .avatar{
     width:22px;height:22px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;
@@ -118,9 +120,27 @@
 
   .role-item{
     font-size:10px;color:var(--text2);line-height:1.5;
-    padding-left:8px;position:relative;
+    padding:2px 4px 2px 12px;position:relative;border-radius:4px;
+    display:flex;align-items:center;justify-content:space-between;
+    transition:background 0.1s;
   }
-  .role-item::before{content:'·';position:absolute;left:0;color:var(--text3)}
+  .role-item:hover{background:var(--surface2)}
+  .role-item:hover .row-actions{opacity:1}
+  .role-item::before{content:'·';position:absolute;left:4px;color:var(--text3)}
+  .role-text{flex:1}
+
+  .row-actions{
+    opacity:0;display:flex;gap:2px;flex-shrink:0;margin-left:4px;
+    transition:opacity 0.1s;
+  }
+  .row-act-btn{
+    width:18px;height:18px;border:none;background:none;cursor:pointer;
+    color:var(--text3);font-size:11px;border-radius:3px;
+    display:flex;align-items:center;justify-content:center;
+    transition:background 0.1s,color 0.1s;padding:0;
+  }
+  .row-act-btn:hover{background:var(--border);color:var(--text)}
+  .row-act-btn.del:hover{background:#FCEBEB;color:#A32D2D}
 
   .add-row{
     display:flex;align-items:center;gap:5px;padding:6px 12px;
@@ -271,10 +291,10 @@
   </div>
 </div>
 
-<!-- Add Person Modal -->
+<!-- Add/Edit Person Modal -->
 <div class="modal-overlay" id="person-modal">
   <div class="modal">
-    <h3>Add person</h3>
+    <h3 id="person-modal-title">Add person</h3>
     <label>Full name</label>
     <input id="pm-name" type="text" placeholder="e.g. Yaron Weinstein">
     <label>Title / Role</label>
@@ -288,20 +308,20 @@
     </select>
     <div class="modal-btns">
       <button onclick="closePersonModal()">Cancel</button>
-      <button class="confirm" onclick="savePersonModal()">Add person</button>
+      <button class="confirm" id="pm-save-btn" onclick="savePersonModal()">Add person</button>
     </div>
   </div>
 </div>
 
-<!-- Add Role Modal -->
+<!-- Add/Edit Role Modal -->
 <div class="modal-overlay" id="role-modal">
   <div class="modal">
-    <h3>Add role / responsibility</h3>
+    <h3 id="role-modal-title">Add role / responsibility</h3>
     <label>Role description</label>
     <textarea id="rm-role" placeholder="e.g. Chief Operating Officer&#10;Manages day-to-day operations"></textarea>
     <div class="modal-btns">
       <button onclick="closeRoleModal()">Cancel</button>
-      <button class="confirm" onclick="saveRoleModal()">Add role</button>
+      <button class="confirm" id="rm-save-btn" onclick="saveRoleModal()">Add role</button>
     </div>
   </div>
 </div>
@@ -341,6 +361,8 @@ let ctxTargetId = null;
 let editingEntityId = null;
 let addPersonForId = null;
 let addRoleForId = null;
+let editingPersonId = null;
+let editingRoleId = null;
 
 const AVATAR_COLORS = [
   ['#E6F1FB','#185FA5'],['#EAF3DE','#3B6D11'],['#FAEEDA','#854F0B'],
@@ -525,8 +547,15 @@ function render(){
         e.people.forEach(p=>{
           const [bg,fg]=avatarColor(p.name);
           html+=`<div class="person-row">
-            <div class="avatar" style="background:${bg};color:${fg}">${initials(p.name)}</div>
-            <div><div class="person-name">${p.name}</div><div class="person-role-tag">${p.role}</div></div>
+            <div class="avatar" style="background:${bg};color:${fg};flex-shrink:0">${initials(p.name)}</div>
+            <div style="flex:1;min-width:0">
+              <div class="person-name">${p.name}</div>
+              <div class="person-role-tag">${p.role||'—'}</div>
+            </div>
+            <div class="row-actions">
+              <button class="row-act-btn" title="Edit" onclick="openEditPersonModal(${e.id},${p.pid})">✎</button>
+              <button class="row-act-btn del" title="Remove" onclick="deletePerson(${e.id},${p.pid})">✕</button>
+            </div>
           </div>`;
         });
         html+=`</div>`;
@@ -534,7 +563,13 @@ function render(){
       if(e.roles.length){
         html+=`<div class="entity-section"><div class="section-label">Roles</div>`;
         e.roles.forEach(r=>{
-          html+=`<div class="role-item">${r.role}</div>`;
+          html+=`<div class="role-item">
+            <span class="role-text">${r.role}</span>
+            <div class="row-actions">
+              <button class="row-act-btn" title="Edit" onclick="openEditRoleModal(${e.id},${r.rid})">✎</button>
+              <button class="row-act-btn del" title="Remove" onclick="deleteRole(${e.id},${r.rid})">✕</button>
+            </div>
+          </div>`;
         });
         html+=`</div>`;
       }
@@ -745,24 +780,117 @@ function saveEntityModal(){
 }
 
 // ─── Person Modal ─────────────────────────────────────────
-function openPersonModal(id){ addPersonForId=id; document.getElementById('pm-name').value=''; document.getElementById('pm-role').value=''; document.getElementById('person-modal').classList.add('open'); }
-function closePersonModal(){ document.getElementById('person-modal').classList.remove('open'); }
+let editingPersonId = null; // {entityId, pid}
+
+function openPersonModal(entityId){
+  editingPersonId = null;
+  addPersonForId = entityId;
+  document.getElementById('person-modal-title').textContent = 'Add person';
+  document.getElementById('pm-save-btn').textContent = 'Add person';
+  document.getElementById('pm-name').value = '';
+  document.getElementById('pm-role').value = '';
+  document.getElementById('pm-type').value = 'employee';
+  document.getElementById('person-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('pm-name').focus(),50);
+}
+
+function openEditPersonModal(entityId, pid){
+  const ent = entities.find(e=>e.id===entityId);
+  if(!ent) return;
+  const p = ent.people.find(p=>p.pid===pid);
+  if(!p) return;
+  editingPersonId = {entityId, pid};
+  addPersonForId = entityId;
+  document.getElementById('person-modal-title').textContent = 'Edit person';
+  document.getElementById('pm-save-btn').textContent = 'Save changes';
+  document.getElementById('pm-name').value = p.name;
+  document.getElementById('pm-role').value = p.role||'';
+  document.getElementById('pm-type').value = p.ptype||'employee';
+  document.getElementById('person-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('pm-name').focus(),50);
+}
+
+function closePersonModal(){ document.getElementById('person-modal').classList.remove('open'); editingPersonId=null; }
+
 function savePersonModal(){
-  const name=document.getElementById('pm-name').value.trim();
-  const role=document.getElementById('pm-role').value.trim();
+  const name = document.getElementById('pm-name').value.trim();
+  const role = document.getElementById('pm-role').value.trim();
+  const ptype = document.getElementById('pm-type').value;
   if(!name) return;
-  addPersonToEnt(addPersonForId,name,role,document.getElementById('pm-type').value);
+  if(editingPersonId){
+    const ent = entities.find(e=>e.id===editingPersonId.entityId);
+    if(ent){
+      const p = ent.people.find(p=>p.pid===editingPersonId.pid);
+      if(p){ p.name=name; p.role=role; p.ptype=ptype; }
+    }
+  } else {
+    addPersonToEnt(addPersonForId, name, role, ptype);
+  }
   closePersonModal(); render();
 }
 
+function deletePerson(entityId, pid){
+  const ent = entities.find(e=>e.id===entityId);
+  if(!ent) return;
+  const p = ent.people.find(p=>p.pid===pid);
+  if(!p) return;
+  if(!confirm(`Remove ${p.name}?`)) return;
+  ent.people = ent.people.filter(p=>p.pid!==pid);
+  render();
+}
+
 // ─── Role Modal ───────────────────────────────────────────
-function openRoleModal(id){ addRoleForId=id; document.getElementById('rm-role').value=''; document.getElementById('role-modal').classList.add('open'); }
-function closeRoleModal(){ document.getElementById('role-modal').classList.remove('open'); }
+let editingRoleId = null; // {entityId, rid}
+
+function openRoleModal(entityId){
+  editingRoleId = null;
+  addRoleForId = entityId;
+  document.getElementById('role-modal-title').textContent = 'Add role / responsibility';
+  document.getElementById('rm-save-btn').textContent = 'Add role';
+  document.getElementById('rm-role').value = '';
+  document.getElementById('role-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('rm-role').focus(),50);
+}
+
+function openEditRoleModal(entityId, rid){
+  const ent = entities.find(e=>e.id===entityId);
+  if(!ent) return;
+  const r = ent.roles.find(r=>r.rid===rid);
+  if(!r) return;
+  editingRoleId = {entityId, rid};
+  addRoleForId = entityId;
+  document.getElementById('role-modal-title').textContent = 'Edit role';
+  document.getElementById('rm-save-btn').textContent = 'Save changes';
+  document.getElementById('rm-role').value = r.role;
+  document.getElementById('role-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('rm-role').focus(),50);
+}
+
+function closeRoleModal(){ document.getElementById('role-modal').classList.remove('open'); editingRoleId=null; }
+
 function saveRoleModal(){
-  const role=document.getElementById('rm-role').value.trim();
+  const role = document.getElementById('rm-role').value.trim();
   if(!role) return;
-  addRoleToEnt(addRoleForId,role);
+  if(editingRoleId){
+    const ent = entities.find(e=>e.id===editingRoleId.entityId);
+    if(ent){
+      const r = ent.roles.find(r=>r.rid===editingRoleId.rid);
+      if(r) r.role = role;
+    }
+  } else {
+    addRoleToEnt(addRoleForId, role);
+  }
   closeRoleModal(); render();
+}
+
+function deleteRole(entityId, rid){
+  const ent = entities.find(e=>e.id===entityId);
+  if(!ent) return;
+  const r = ent.roles.find(r=>r.rid===rid);
+  if(!r) return;
+  if(!confirm(`Remove this role?`)) return;
+  ent.roles = ent.roles.filter(r=>r.rid!==rid);
+  render();
 }
 
 // ─── Relationship Modal ────────────────────────────────────
